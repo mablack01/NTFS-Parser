@@ -30,6 +30,10 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
     log_sequence_number = as_signed_le(mft_data[8:16])
     sequence_number = as_signed_le(mft_data[16:18])
     number_of_links = as_signed_le(mft_data[18:20])
+    first_attribute = as_signed_le(mft_data[20:22])
+    attributes_data = mft_data[first_attribute:]
+    flags_value = as_signed_le(attributes_data[22:24])
+    flags_data = get_flags(flags_value)
     result.append("MTF Entry Header Values:")
     result.append("Entry: " + str(address) + "\tSequence: " + str(sequence_number))
     result.append("$LogFile Sequence Number: " + str(log_sequence_number))
@@ -37,13 +41,26 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
     result.append("Links: " + str(number_of_links))
     result.append("")
     result.append("$STANDARD_INFORMATION Attribute Values:")
-    result.append("Flags: ")
-    print("===============================")
-    for s in result:
-        print(s)
-    print("===============================")
+    result.append("Flags: " + flags_data)
     return result
 
+def get_flags(value):
+    flag_attributes = []
+    if (0x01 & value):
+        flag_attributes.append("Read-only")
+    if (0x02 & value):
+        flag_attributes.append("Hidden file")
+    if (0x04 & value):
+        flag_attributes.append("System file")
+    if (0x08 & value):
+        flag_attributes.append("Volume label")
+    if (0x0f & value):
+        flag_attributes.append("Long file name")
+    if (0x10 & value):
+        flag_attributes.append("Directory")
+    if (0x20 & value):
+        flag_attributes.append("Archive")
+    return ", ".join(flag_attributes)
 
 def into_localtime_string(windows_timestamp):
     """
