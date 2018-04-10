@@ -25,14 +25,14 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
     bytes_per_cluster = bytes_per_sector * sectors_per_cluster
     mft_cluster = as_signed_le(data[48:56])
     mft_start = bytes_per_cluster * mft_cluster
-    mft_data = data[mft_start:]
     mft_entry_size = as_signed_le(data[64:65])
-    log_sequence_number = as_signed_le(mft_data[8:16])
-    sequence_number = as_signed_le(mft_data[16:18])
-    number_of_links = as_signed_le(mft_data[18:20])
-    first_attribute = as_signed_le(mft_data[20:22])
-    attributes_data = mft_data[first_attribute:]
-    flags_value = as_signed_le(attributes_data[22:24])
+    entry_start = 1024 * address #File Size 1,024 due to project specifications
+    entry_data = data[mft_start + entry_start:]
+    log_sequence_number = as_signed_le(entry_data[8:16])
+    sequence_number = as_signed_le(entry_data[16:18])
+    number_of_links = as_signed_le(entry_data[18:20])
+    first_attribute = as_signed_le(entry_data[20:22])
+    flags_value = as_signed_le(entry_data[22:24])
     flags_data = get_flags(flags_value)
     result.append("MTF Entry Header Values:")
     result.append("Entry: " + str(address) + "\tSequence: " + str(sequence_number))
