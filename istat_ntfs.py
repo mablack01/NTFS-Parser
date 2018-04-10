@@ -46,20 +46,32 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
 
 def get_flags(value):
     flag_attributes = []
-    if (0x01 & value):
-        flag_attributes.append("Read-only")
-    if (0x02 & value):
-        flag_attributes.append("Hidden file")
-    if (0x04 & value):
-        flag_attributes.append("System file")
-    if (0x08 & value):
-        flag_attributes.append("Volume label")
-    if (0x0f & value):
-        flag_attributes.append("Long file name")
-    if (0x10 & value):
-        flag_attributes.append("Directory")
-    if (0x20 & value):
+    if (0x0001 & value):
+        flag_attributes.append("Read Only")
+    if (0x0002 & value):
+        flag_attributes.append("Hidden")
+    if (0x0004 & value):
+        flag_attributes.append("System")
+    if (0x0020 & value):
         flag_attributes.append("Archive")
+    if (0x0040 & value):
+        flag_attributes.append("Device")
+    if (0x0080 & value):
+        flag_attributes.append("Normal")
+    if (0x0100 & value):
+        flag_attributes.append("Temporary")
+    if (0x0200 & value):
+        flag_attributes.append("Sparse file")
+    if (0x0400 & value):
+        flag_attributes.append("Reparse point")
+    if (0x0800 & value):
+        flag_attributes.append("Compressed")
+    if (0x1000 & value):
+        flag_attributes.append("Offline")
+    if (0x2000 & value):
+        flag_attributes.append("Content is not being indexed for faster searches") #This is the description provided in the book (Carrier)
+    if (0x4000 & value):
+        flag_attributes.append("Encrypted")
     return ", ".join(flag_attributes)
 
 def into_localtime_string(windows_timestamp):
