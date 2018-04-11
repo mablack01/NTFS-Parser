@@ -28,10 +28,44 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
     mft_entry_size = as_signed_le(data[64:65])
     entry_start = 1024 * address #File Size 1,024 due to project specifications
     entry_data = data[mft_start + entry_start:]
+    fixup_array_offset = as_signed_le(entry_data[4:6])
+    fixup_array_entries = as_signed_le(entry_data[6:8])
+    #Handle Fixup Array
+    fixup_array_value = entry_data[fixup_array_offset:fixup_array_offset + 2]
+    if fixup_array_value == entry_data[510:512] and fixup_array_value == entry_data[1022:1024]:
+        entry_data = bytearray(entry_data)
+        entry_data[510:512] = entry_data[fixup_array_offset + 2:fixup_array_offset + 4]
+        entry_data[1022:1024] = entry_data[fixup_array_offset + 4:fixup_array_offset + 6]
+        entry_data = bytes(entry_data)
     log_sequence_number = as_signed_le(entry_data[8:16])
     sequence_number = as_signed_le(entry_data[16:18])
     number_of_links = as_signed_le(entry_data[18:20])
     first_attribute = as_signed_le(entry_data[20:22])
+    attribute_offset = first_attribute
+    found_attributes = 0
+    while True:
+        attribute_data = entry_data[attribute_offset:attribute_offset + 16]
+        attribute_type = as_signed_le(attribute_data[0:4])
+        attribute_length = as_signed_le(attribute_data[4:8])
+        attribute_non_resident = as_signed_le(attribute_data[8:9])
+        if attribute_non_resident: #Non-resident
+            print("Non Resident")
+            #attribute_size = as_signed_le(attribute_data[40:48])
+        else: #Resident
+            print("Resident")
+            #attribute_size = as_signed_le(attribute_data[16:20])
+        if attribute_type == 0x10:
+            print("$STANDARD_INFORMATION")
+            found_attributes = found_attributes + 1
+        elif attribute_type == 0x30:
+            print("$FILE_NAME")
+            found_attributes = found_attributes + 1
+        elif attribute_type == 0x80:
+            print("$DATA")
+            found_attributes = found_attributes + 1
+        if found_attributes >= 3:
+            break
+        attribute_offset = attribute_offset + attribute_length
     flags_value = as_signed_le(entry_data[22:24])
     flags_data = get_flags(flags_value)
     result.append("MTF Entry Header Values:")
