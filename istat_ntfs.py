@@ -47,6 +47,12 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
         attribute_type = as_signed_le(attribute_data[0:4])
         attribute_length = as_signed_le(attribute_data[4:8])
         attribute_non_resident = as_signed_le(attribute_data[8:9])
+        attribute_name_length = as_signed_le(attribute_data[9:10])
+        attribute_name_offset = as_signed_le(attribute_data[10:12])
+        if attribute_name_length <= 0:
+            attribute_name = "N/A"
+        else:
+            attribute_name = attribute_data[attribute_name_offset:attribute_name_offset + attribute_name_length].decode('utf-16-le')
         if attribute_non_resident:
             offset_to_content = 0
         else:
@@ -56,7 +62,9 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
                 standard_resident = "Non-Resident"
             else:
                 standard_resident = "Resident"
+                standard_size = as_signed_le(attribute_data[16:20])
             standard_type = attribute_type
+            standard_name = attribute_name
             standard_identifier = as_signed_le(attribute_data[14:16])
             #standard_creation_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 0:offset_to_content + 8]))
             #standard_file_altered_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 8:offset_to_content + 16]))
@@ -70,7 +78,9 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
                 file_resident = "Non-Resident"
             else:
                 file_resident = "Resident"
+                file_size = as_signed_le(attribute_data[16:20])
             file_type = attribute_type
+            file_name_name = attribute_name
             file_identifier = as_signed_le(attribute_data[14:16])
             file_parent_sequence = as_signed_le(attribute_data[offset_to_content + 0:offset_to_content + 2])
             file_parent_entry = as_signed_le(attribute_data[offset_to_content + 6:offset_to_content + 8])
@@ -89,7 +99,9 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
                 data_resident = "Non-Resident"
             else:
                 data_resident = "Resident"
+                data_size = as_signed_le(attribute_data[16:20])
             data_type = attribute_type
+            data_name = attribute_name
             data_identifier = as_signed_le(attribute_data[14:16])
             print("$DATA")
         elif attribute_type == -1:
@@ -102,7 +114,7 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
     result.append("Links: " + str(number_of_links))
     result.append("")
     result.append("$STANDARD_INFORMATION Attribute Values:")
-    result.append("Flags: " + standard_flag_data) #TODO: Fix the right flag data
+    result.append("Flags: " + standard_flag_data)
     result.append("Owner ID: " + standard_owner_id)
     result.append("Created:\t")# + standard_creation_time)
     result.append("File Modified:\t")# + standard_file_altered_time)
@@ -120,9 +132,9 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
     result.append("Accessed:\t")# + file_file_accessed_time)
     result.append("")
     result.append("Attributes:")
-    result.append("Type: $STANDARD_INFORMATION (" + str(standard_type) + "-" + str(standard_identifier) + ")\tName: N/A\t" + standard_resident + "\tsize: ")
-    result.append("Type: $FILE_INFORMATION (" + str(file_type) + "-" + str(file_identifier) + ")\tName: N/A\t" + file_resident + "\tsize: ")
-    result.append("Type: $DATA_INFORMATION (" + str(data_type) + "-" + str(data_identifier) + ")\tName: N/A\t" + data_resident + "\tsize: ")
+    result.append("Type: $STANDARD_INFORMATION (" + str(standard_type) + "-" + str(standard_identifier) + ")\tName: " + standard_name + "\t" + standard_resident + "\tsize: " + str(standard_size))
+    result.append("Type: $FILE_INFORMATION (" + str(file_type) + "-" + str(file_identifier) + ")\tName: " + file_name_name + "\t" + file_resident + "\tsize: " + str(file_size))
+    result.append("Type: $DATA_INFORMATION (" + str(data_type) + "-" + str(data_identifier) + ")\tName: " + data_name + "\t" + data_resident + "\tsize: " + str(data_size))
     return result
 
 def get_flags(value):
