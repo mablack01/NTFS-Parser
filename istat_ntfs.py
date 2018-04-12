@@ -58,9 +58,8 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
             #standard_file_accessed_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 24:offset_to_content + 32]))
             standard_flag_value = as_signed_le(attribute_data[offset_to_content + 32:offset_to_content + 36])
             standard_flag_data = get_flags(standard_flag_value)
-            standard_owner_id = as_signed_le(attribute_data[offset_to_content + 48:offset_to_content + 52])
+            standard_owner_id = str(chr(as_signed_le(attribute_data[offset_to_content + 48:offset_to_content + 52])))
         elif attribute_type == 0x30:
-            print(offset_to_content)
             file_parent_sequence = as_signed_le(attribute_data[offset_to_content + 0:offset_to_content + 2])
             file_parent_entry = as_signed_le(attribute_data[offset_to_content + 6:offset_to_content + 8])
             #file_creation_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 8:offset_to_content + 16]))
@@ -71,6 +70,8 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
             file_actual_size = as_signed_le(attribute_data[offset_to_content + 48:offset_to_content + 56])
             file_flag_value = as_signed_le(attribute_data[offset_to_content + 56:offset_to_content + 60])
             file_flag_data = get_flags(file_flag_value)
+            file_name_length = as_signed_le(attribute_data[offset_to_content + 64:offset_to_content + 65]) * 2
+            file_name = attribute_data[offset_to_content + 66: offset_to_content + file_name_length + 66].decode('utf-16-le')
         elif attribute_type == 0x80:
             print("$DATA")
         elif attribute_type == -1:
@@ -84,7 +85,7 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
     result.append("")
     result.append("$STANDARD_INFORMATION Attribute Values:")
     result.append("Flags: " + standard_flag_data) #TODO: Fix the right flag data
-    result.append("Owner ID: " + str(standard_owner_id))
+    result.append("Owner ID: " + standard_owner_id)
     result.append("Created:\t")# + standard_creation_time)
     result.append("File Modified:\t")# + standard_file_altered_time)
     result.append("MFT Modified:\t")# + standard_mft_altered_time)
@@ -92,7 +93,7 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
     result.append("")
     result.append("$FILE_NAME Attribute Values:")
     result.append("Flags: " + file_flag_data)
-    result.append("Name: ")
+    result.append("Name: " + file_name)
     result.append("Parent MFT Entry: " + str(file_parent_entry) + "\tSequence: " + str(file_parent_sequence))
     result.append("Allocated Size: " + str(file_allocated_size) + "\tActual Size: " + str(file_actual_size))
     result.append("Created:\t")# + file_creation_time)
