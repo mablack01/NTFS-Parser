@@ -42,6 +42,7 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
     number_of_links = as_signed_le(entry_data[18:20])
     first_attribute = as_signed_le(entry_data[20:22])
     attribute_offset = first_attribute
+    runlist = []
     while True:
         attribute_data = entry_data[attribute_offset:]
         attribute_type = as_signed_le(attribute_data[0:4])
@@ -49,10 +50,11 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
         attribute_non_resident = as_signed_le(attribute_data[8:9])
         attribute_name_length = as_signed_le(attribute_data[9:10])
         attribute_name_offset = as_signed_le(attribute_data[10:12])
-        if attribute_name_length <= 0:
-            attribute_name = "N/A"
-        else:
-            attribute_name = attribute_data[attribute_name_offset:attribute_name_offset + attribute_name_length].decode('utf-16-le')
+        if attribute_type == 0x10 or attribute_type == 0x30 or attribute_type == 0x100:
+            if attribute_name_length <= 0:
+                attribute_name = "N/A"
+            else:
+                attribute_name = attribute_data[attribute_name_offset:attribute_name_offset + attribute_name_length].decode('utf-16-le')
         if attribute_non_resident:
             offset_to_content = 0
         else:
@@ -66,10 +68,10 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
             standard_type = attribute_type
             standard_name = attribute_name
             standard_identifier = as_signed_le(attribute_data[14:16])
-            #standard_creation_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 0:offset_to_content + 8]))
-            #standard_file_altered_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 8:offset_to_content + 16]))
-            #standard_mft_altered_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 16:offset_to_content + 24]))
-            #standard_file_accessed_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 24:offset_to_content + 32]))
+            standard_creation_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 0:offset_to_content + 8]))
+            standard_file_altered_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 8:offset_to_content + 16]))
+            standard_mft_altered_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 16:offset_to_content + 24]))
+            standard_file_accessed_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 24:offset_to_content + 32]))
             standard_flag_value = as_signed_le(attribute_data[offset_to_content + 32:offset_to_content + 36])
             standard_flag_data = get_flags(standard_flag_value)
             standard_owner_id = str(chr(as_signed_le(attribute_data[offset_to_content + 48:offset_to_content + 52])))
@@ -82,12 +84,12 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
             file_type = attribute_type
             file_name_name = attribute_name
             file_identifier = as_signed_le(attribute_data[14:16])
-            file_parent_sequence = as_signed_le(attribute_data[offset_to_content + 0:offset_to_content + 2])
-            file_parent_entry = as_signed_le(attribute_data[offset_to_content + 6:offset_to_content + 8])
-            #file_creation_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 8:offset_to_content + 16]))
-            #file_file_altered_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 16:offset_to_content + 24]))
-            #file_mft_altered_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 24:offset_to_content + 32]))
-            #file_file_accessed_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 32:offset_to_content + 40]))
+            file_parent_entry = as_signed_le(attribute_data[offset_to_content + 0:offset_to_content + 2])
+            file_parent_sequence = as_signed_le(attribute_data[offset_to_content + 6:offset_to_content + 8])
+            file_creation_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 8:offset_to_content + 16]))
+            file_file_altered_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 16:offset_to_content + 24]))
+            file_mft_altered_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 24:offset_to_content + 32]))
+            file_file_accessed_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 32:offset_to_content + 40]))
             file_allocated_size = as_signed_le(attribute_data[offset_to_content + 40:offset_to_content + 48])
             file_actual_size = as_signed_le(attribute_data[offset_to_content + 48:offset_to_content + 56])
             file_flag_value = as_signed_le(attribute_data[offset_to_content + 56:offset_to_content + 60])
@@ -97,18 +99,33 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
         elif attribute_type == 0x80:
             if attribute_non_resident:
                 data_resident = "Non-Resident"
+                runlist_offset = as_signed_le(attribute_data[32:34])
+                data_size = as_signed_le(attribute_data[48:56])
+                data_initial_size = as_signed_le(attribute_data[56:64])
+                run_prev_offset = 0
+                while True:
+                    runlist_data = attribute_data[runlist_offset:]
+                    if as_signed_le(runlist_data[0:1]) == 0:
+                        break
+                    run_length_size = as_signed_le(runlist_data[0:1]) & 0b00001111
+                    run_length = as_signed_le(runlist_data[1:1 + run_length_size])
+                    run_offset_size = (as_signed_le(runlist_data[0:1]) & 0b11110000) >> 4
+                    run_offset = as_signed_le(runlist_data[1 + run_length_size:1 + run_length_size + run_offset_size]) + run_prev_offset
+                    for i in range(run_length):
+                        runlist.append(str(run_offset + i))
+                    runlist_offset = runlist_offset + 1 + run_length_size + run_offset_size
+                    run_prev_offset = run_offset
             else:
                 data_resident = "Resident"
                 data_size = as_signed_le(attribute_data[16:20])
             data_type = attribute_type
             data_name = attribute_name
             data_identifier = as_signed_le(attribute_data[14:16])
-            print("$DATA")
         elif attribute_type == -1:
             break
         attribute_offset = attribute_offset + attribute_length
-    result.append("MTF Entry Header Values:")
-    result.append("Entry: " + str(address) + "\tSequence: " + str(sequence_number))
+    result.append("MFT Entry Header Values:")
+    result.append("Entry: " + str(address) + "        Sequence: " + str(sequence_number))
     result.append("$LogFile Sequence Number: " + str(log_sequence_number))
     result.append("Allocated File")
     result.append("Links: " + str(number_of_links))
@@ -116,25 +133,33 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
     result.append("$STANDARD_INFORMATION Attribute Values:")
     result.append("Flags: " + standard_flag_data)
     result.append("Owner ID: " + standard_owner_id)
-    result.append("Created:\t")# + standard_creation_time)
-    result.append("File Modified:\t")# + standard_file_altered_time)
-    result.append("MFT Modified:\t")# + standard_mft_altered_time)
-    result.append("Accessed:\t")# + standard_file_accessed_time)
+    result.append("Created:\t" + standard_creation_time)
+    result.append("File Modified:\t" + standard_file_altered_time)
+    result.append("MFT Modified:\t" + standard_mft_altered_time)
+    result.append("Accessed:\t" + standard_file_accessed_time)
     result.append("")
     result.append("$FILE_NAME Attribute Values:")
     result.append("Flags: " + file_flag_data)
     result.append("Name: " + file_name)
-    result.append("Parent MFT Entry: " + str(file_parent_entry) + "\tSequence: " + str(file_parent_sequence))
-    result.append("Allocated Size: " + str(file_allocated_size) + "\tActual Size: " + str(file_actual_size))
-    result.append("Created:\t")# + file_creation_time)
-    result.append("File Modified:\t")# + file_file_altered_time)
-    result.append("MFT Modified:\t")# + file_mft_altered_time)
-    result.append("Accessed:\t")# + file_file_accessed_time)
+    result.append("Parent MFT Entry: " + str(file_parent_entry) + " \tSequence: " + str(file_parent_sequence))
+    result.append("Allocated Size: " + str(file_allocated_size) + "   \tActual Size: " + str(file_actual_size))
+    result.append("Created:\t" + file_creation_time)
+    result.append("File Modified:\t" + file_file_altered_time)
+    result.append("MFT Modified:\t" + file_mft_altered_time)
+    result.append("Accessed:\t" + file_file_accessed_time)
     result.append("")
     result.append("Attributes:")
-    result.append("Type: $STANDARD_INFORMATION (" + str(standard_type) + "-" + str(standard_identifier) + ")\tName: " + standard_name + "\t" + standard_resident + "\tsize: " + str(standard_size))
-    result.append("Type: $FILE_INFORMATION (" + str(file_type) + "-" + str(file_identifier) + ")\tName: " + file_name_name + "\t" + file_resident + "\tsize: " + str(file_size))
-    result.append("Type: $DATA_INFORMATION (" + str(data_type) + "-" + str(data_identifier) + ")\tName: " + data_name + "\t" + data_resident + "\tsize: " + str(data_size))
+    result.append("Type: $STANDARD_INFORMATION (" + str(standard_type) + "-" + str(standard_identifier) + ")   Name: " + standard_name + "   " + standard_resident + "   size: " + str(standard_size))
+    result.append("Type: $FILE_NAME (" + str(file_type) + "-" + str(file_identifier) + ")   Name: " + file_name_name + "   " + file_resident + "   size: " + str(file_size))
+    if len(runlist) > 0:
+        result.append("Type: $DATA (" + str(data_type) + "-" + str(data_identifier) + ")   Name: " + data_name + "   " + data_resident + "   size: " + str(data_size) + "  init_size: " + str(data_initial_size))
+        for i in range(0, len(runlist), 8):
+            if (i + 8) <= len(runlist):
+                result.append(' '.join(runlist[i:i + 8]))
+            else:
+                result.append(' '.join(runlist[i:(len(runlist))]))
+    else:
+        result.append("Type: $DATA (" + str(data_type) + "-" + str(data_identifier) + ")   Name: " + data_name + "   " + data_resident + "   size: " + str(data_size))
     return result
 
 def get_flags(value):
