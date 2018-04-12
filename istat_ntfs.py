@@ -42,9 +42,8 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
     number_of_links = as_signed_le(entry_data[18:20])
     first_attribute = as_signed_le(entry_data[20:22])
     attribute_offset = first_attribute
-    found_attributes = 0
     while True:
-        attribute_data = entry_data[attribute_offset:attribute_offset + 16]
+        attribute_data = entry_data[attribute_offset:]
         attribute_type = as_signed_le(attribute_data[0:4])
         attribute_length = as_signed_le(attribute_data[4:8])
         attribute_non_resident = as_signed_le(attribute_data[8:9])
@@ -55,19 +54,15 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
             print("Resident")
             #attribute_size = as_signed_le(attribute_data[16:20])
         if attribute_type == 0x10:
-            print("$STANDARD_INFORMATION")
-            found_attributes = found_attributes + 1
+            standard_flag_value = as_signed_le(attribute_data[16 + 32: 16 + 36])
+            standard_flag_data = get_flags(standard_flag_value)
         elif attribute_type == 0x30:
             print("$FILE_NAME")
-            found_attributes = found_attributes + 1
         elif attribute_type == 0x80:
             print("$DATA")
-            found_attributes = found_attributes + 1
-        if found_attributes >= 3:
+        elif attribute_type == -1:
             break
         attribute_offset = attribute_offset + attribute_length
-    flags_value = as_signed_le(entry_data[22:24])
-    flags_data = get_flags(flags_value)
     result.append("MTF Entry Header Values:")
     result.append("Entry: " + str(address) + "\tSequence: " + str(sequence_number))
     result.append("$LogFile Sequence Number: " + str(log_sequence_number))
@@ -75,7 +70,7 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
     result.append("Links: " + str(number_of_links))
     result.append("")
     result.append("$STANDARD_INFORMATION Attribute Values:")
-    result.append("Flags: " + flags_data)
+    result.append("Flags: " + standard_flag_data)
     return result
 
 def get_flags(value):
