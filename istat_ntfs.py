@@ -52,6 +52,12 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
         else:
             offset_to_content = as_signed_le(attribute_data[20:22])
         if attribute_type == 0x10:
+            if attribute_non_resident:
+                standard_resident = "Non-Resident"
+            else:
+                standard_resident = "Resident"
+            standard_type = attribute_type
+            standard_identifier = as_signed_le(attribute_data[14:16])
             #standard_creation_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 0:offset_to_content + 8]))
             #standard_file_altered_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 8:offset_to_content + 16]))
             #standard_mft_altered_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 16:offset_to_content + 24]))
@@ -60,6 +66,12 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
             standard_flag_data = get_flags(standard_flag_value)
             standard_owner_id = str(chr(as_signed_le(attribute_data[offset_to_content + 48:offset_to_content + 52])))
         elif attribute_type == 0x30:
+            if attribute_non_resident:
+                file_resident = "Non-Resident"
+            else:
+                file_resident = "Resident"
+            file_type = attribute_type
+            file_identifier = as_signed_le(attribute_data[14:16])
             file_parent_sequence = as_signed_le(attribute_data[offset_to_content + 0:offset_to_content + 2])
             file_parent_entry = as_signed_le(attribute_data[offset_to_content + 6:offset_to_content + 8])
             #file_creation_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 8:offset_to_content + 16]))
@@ -73,6 +85,12 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
             file_name_length = as_signed_le(attribute_data[offset_to_content + 64:offset_to_content + 65]) * 2
             file_name = attribute_data[offset_to_content + 66: offset_to_content + file_name_length + 66].decode('utf-16-le')
         elif attribute_type == 0x80:
+            if attribute_non_resident:
+                data_resident = "Non-Resident"
+            else:
+                data_resident = "Resident"
+            data_type = attribute_type
+            data_identifier = as_signed_le(attribute_data[14:16])
             print("$DATA")
         elif attribute_type == -1:
             break
@@ -100,10 +118,14 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
     result.append("File Modified:\t")# + file_file_altered_time)
     result.append("MFT Modified:\t")# + file_mft_altered_time)
     result.append("Accessed:\t")# + file_file_accessed_time)
+    result.append("")
+    result.append("Attributes:")
+    result.append("Type: $STANDARD_INFORMATION (" + str(standard_type) + "-" + str(standard_identifier) + ")\tName: N/A\t" + standard_resident + "\tsize: ")
+    result.append("Type: $FILE_INFORMATION (" + str(file_type) + "-" + str(file_identifier) + ")\tName: N/A\t" + file_resident + "\tsize: ")
+    result.append("Type: $DATA_INFORMATION (" + str(data_type) + "-" + str(data_identifier) + ")\tName: N/A\t" + data_resident + "\tsize: ")
     return result
 
 def get_flags(value):
-    print("Flag Value: " + str(value))
     flag_attributes = []
     if (0x0001 & value):
         flag_attributes.append("Read Only")
