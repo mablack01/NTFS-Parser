@@ -47,17 +47,30 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
         attribute_type = as_signed_le(attribute_data[0:4])
         attribute_length = as_signed_le(attribute_data[4:8])
         attribute_non_resident = as_signed_le(attribute_data[8:9])
-        if attribute_non_resident: #Non-resident
-            print("Non Resident")
-            #attribute_size = as_signed_le(attribute_data[40:48])
-        else: #Resident
-            print("Resident")
-            #attribute_size = as_signed_le(attribute_data[16:20])
+        if attribute_non_resident:
+            offset_to_content = 0
+        else:
+            offset_to_content = as_signed_le(attribute_data[20:22])
         if attribute_type == 0x10:
-            standard_flag_value = as_signed_le(attribute_data[16 + 32: 16 + 36])
+            #standard_creation_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 0:offset_to_content + 8]))
+            #standard_file_altered_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 8:offset_to_content + 16]))
+            #standard_mft_altered_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 16:offset_to_content + 24]))
+            #standard_file_accessed_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 24:offset_to_content + 32]))
+            standard_flag_value = as_signed_le(attribute_data[offset_to_content + 32:offset_to_content + 36])
             standard_flag_data = get_flags(standard_flag_value)
+            standard_owner_id = as_signed_le(attribute_data[offset_to_content + 48:offset_to_content + 52])
         elif attribute_type == 0x30:
-            print("$FILE_NAME")
+            print(offset_to_content)
+            file_parent_sequence = as_signed_le(attribute_data[offset_to_content + 0:offset_to_content + 2])
+            file_parent_entry = as_signed_le(attribute_data[offset_to_content + 6:offset_to_content + 8])
+            #file_creation_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 8:offset_to_content + 16]))
+            #file_file_altered_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 16:offset_to_content + 24]))
+            #file_mft_altered_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 24:offset_to_content + 32]))
+            #file_file_accessed_time = into_localtime_string(as_signed_le(attribute_data[offset_to_content + 32:offset_to_content + 40]))
+            file_allocated_size = as_signed_le(attribute_data[offset_to_content + 40:offset_to_content + 48])
+            file_actual_size = as_signed_le(attribute_data[offset_to_content + 48:offset_to_content + 56])
+            file_flag_value = as_signed_le(attribute_data[offset_to_content + 56:offset_to_content + 60])
+            file_flag_data = get_flags(file_flag_value)
         elif attribute_type == 0x80:
             print("$DATA")
         elif attribute_type == -1:
@@ -66,14 +79,30 @@ def istat_ntfs(f, address, sector_size=512, offset=0):
     result.append("MTF Entry Header Values:")
     result.append("Entry: " + str(address) + "\tSequence: " + str(sequence_number))
     result.append("$LogFile Sequence Number: " + str(log_sequence_number))
-    result.append("Allocated File") #TODO implement
+    result.append("Allocated File")
     result.append("Links: " + str(number_of_links))
     result.append("")
     result.append("$STANDARD_INFORMATION Attribute Values:")
-    result.append("Flags: " + standard_flag_data)
+    result.append("Flags: " + standard_flag_data) #TODO: Fix the right flag data
+    result.append("Owner ID: " + str(standard_owner_id))
+    result.append("Created:\t")# + standard_creation_time)
+    result.append("File Modified:\t")# + standard_file_altered_time)
+    result.append("MFT Modified:\t")# + standard_mft_altered_time)
+    result.append("Accessed:\t")# + standard_file_accessed_time)
+    result.append("")
+    result.append("$FILE_NAME Attribute Values:")
+    result.append("Flags: " + file_flag_data)
+    result.append("Name: ")
+    result.append("Parent MFT Entry: " + str(file_parent_entry) + "\tSequence: " + str(file_parent_sequence))
+    result.append("Allocated Size: " + str(file_allocated_size) + "\tActual Size: " + str(file_actual_size))
+    result.append("Created:\t")# + file_creation_time)
+    result.append("File Modified:\t")# + file_file_altered_time)
+    result.append("MFT Modified:\t")# + file_mft_altered_time)
+    result.append("Accessed:\t")# + file_file_accessed_time)
     return result
 
 def get_flags(value):
+    print("Flag Value: " + str(value))
     flag_attributes = []
     if (0x0001 & value):
         flag_attributes.append("Read Only")
