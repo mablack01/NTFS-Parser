@@ -1,9 +1,6 @@
 import unittest
-
 import istat_ntfs
 import tsk_helper
-
-
 
 class TestIstatNtfs(unittest.TestCase):
     def __init__(self, methodName='runTest'):
@@ -18,7 +15,6 @@ class TestIstatNtfs(unittest.TestCase):
         if len(expected) != len(actual):
             self.fail()
         self.assertEqual(expected, actual)
-
 
     def testImage64(self):
         with open('image.ntfs.64.out') as f:
